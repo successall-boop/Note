@@ -1,73 +1,134 @@
-import { createUniver, LocaleType, mergeLocales } from 'https://esm.sh/@univerjs/presets@0.20.1';
-import { UniverSheetsCorePreset } from 'https://esm.sh/@univerjs/preset-sheets-core@0.20.1';
-import zhCN from 'https://esm.sh/@univerjs/preset-sheets-core@0.20.1/locales/zh-CN';
+using System;
+using System.IO;
+using System.Text;
+using System.Web;
+using System.Web.Script.Serialization;
+using System.Web.Services;
 
-const saveButton = document.getElementById('btnSave');
-const saveStatus = document.getElementById('saveStatus');
-
-const { univerAPI } = createUniver({
-    locale: LocaleType.ZH_CN,
-    locales: {
-        [LocaleType.ZH_CN]: mergeLocales(zhCN),
-    },
-    presets: [
-        UniverSheetsCorePreset({
-            container: 'app',
-        }),
-    ],
-});
-
-console.log('univerAPI =', univerAPI);
-
-if (!univerAPI || typeof univerAPI.createWorkbook !== 'function') {
-    saveStatus.textContent = '初始化失敗：univerAPI.createWorkbook 不可用';
-    throw new Error('univerAPI.createWorkbook is not a function');
-}
-
-const workbook = univerAPI.createWorkbook(window.initialWorkbook);
-
-async function saveWorkbook() {
-    try {
-        saveButton.disabled = true;
-        saveStatus.textContent = '儲存中...';
-
-        const activeWorkbook = univerAPI.getActiveWorkbook();
-        if (!activeWorkbook) {
-            throw new Error('找不到 active workbook');
+namespace WebFormsUniverDemo
+{
+    public partial class Default : System.Web.UI.Page
+    {
+        protected void Page_Load(object sender, EventArgs e)
+        {
+            if (!IsPostBack)
+            {
+                ltWorkbookJson.Text = LoadWorkbookJson();
+            }
         }
 
-        if (typeof activeWorkbook.endEditingAsync === 'function') {
-            await activeWorkbook.endEditingAsync(true);
+        private string LoadWorkbookJson()
+        {
+            string path = Server.MapPath("~/App_Data/workbook.json");
+
+            if (File.Exists(path))
+            {
+                return File.ReadAllText(path, Encoding.UTF8);
+            }
+
+            var workbook = new
+            {
+                id = "workbook-001",
+                name = "銷售報表",
+                appVersion = "1.0.0",
+                locale = "zhCN",
+                styles = new { },
+                sheetOrder = new[] { "sheet-1" },
+                sheets = new System.Collections.Generic.Dictionary<string, object>
+                {
+                    {
+                        "sheet-1",
+                        new
+                        {
+                            id = "sheet-1",
+                            name = "Sheet1",
+                            rowCount = 20,
+                            columnCount = 10,
+                            defaultRowHeight = 24,
+                            defaultColumnWidth = 100,
+                            cellData = new System.Collections.Generic.Dictionary<string, object>
+                            {
+                                {
+                                    "0",
+                                    new System.Collections.Generic.Dictionary<string, object>
+                                    {
+                                        { "0", new { v = "商品" } },
+                                        { "1", new { v = "數量" } },
+                                        { "2", new { v = "單價" } },
+                                        { "3", new { v = "小計" } }
+                                    }
+                                },
+                                {
+                                    "1",
+                                    new System.Collections.Generic.Dictionary<string, object>
+                                    {
+                                        { "0", new { v = "蘋果" } },
+                                        { "1", new { v = 3 } },
+                                        { "2", new { v = 25 } },
+                                        { "3", new { v = 75 } }
+                                    }
+                                },
+                                {
+                                    "2",
+                                    new System.Collections.Generic.Dictionary<string, object>
+                                    {
+                                        { "0", new { v = "香蕉" } },
+                                        { "1", new { v = 5 } },
+                                        { "2", new { v = 12 } },
+                                        { "3", new { v = 60 } }
+                                    }
+                                }
+                            },
+                            rowData = new { },
+                            columnData = new { },
+                            mergeData = new object[] { },
+                            showGridlines = 1,
+                            rightToLeft = 0,
+                            rowHeader = new { width = 46 },
+                            columnHeader = new { height = 20 }
+                        }
+                    }
+                }
+            };
+
+            return new JavaScriptSerializer().Serialize(workbook);
         }
 
-        if (typeof activeWorkbook.save !== 'function') {
-            throw new Error('目前 workbook 不支援 save()');
+        [WebMethod]
+        public static SaveResult SaveWorkbook(string workbookJson)
+        {
+            try
+            {
+                string path = HttpContext.Current.Server.MapPath("~/App_Data/workbook.json");
+                string dir = Path.GetDirectoryName(path);
+
+                if (!Directory.Exists(dir))
+                {
+                    Directory.CreateDirectory(dir);
+                }
+
+                File.WriteAllText(path, workbookJson, Encoding.UTF8);
+
+                return new SaveResult
+                {
+                    success = true,
+                    message = "儲存成功：" + DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss")
+                };
+            }
+            catch (Exception ex)
+            {
+                return new SaveResult
+                {
+                    success = false,
+                    message = ex.Message
+                };
+            }
         }
 
-        const snapshot = activeWorkbook.save();
-
-        const response = await fetch('Default.aspx/SaveWorkbook', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json; charset=utf-8'
-            },
-            body: JSON.stringify({
-                workbookJson: JSON.stringify(snapshot)
-            })
-        });
-
-        const result = await response.json();
-
-        if (!result.d || !result.d.success) {
-            throw new Error((result.d && result.d.message) || '儲存失敗');
+        public class SaveResult
+        {
+            public bool success { get; set; }
+            public string message { get; set; }
         }
-
-        saveStatus.textContent = result.d.message;
-    } catch (error) {
-        saveStatus.textContent = '儲存失敗：' + error.message;
-    } finally {
-        saveButton.disabled = false;
     }
 }
-
-saveButton.addEventListener('click', saveWorkbook);

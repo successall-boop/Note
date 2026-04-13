@@ -1,68 +1,73 @@
-<%@ Page Language="C#" AutoEventWireup="true" CodeBehind="Default.aspx.cs" Inherits="WebFormsUniverDemo.Default" %>
+import { createUniver, LocaleType, mergeLocales } from 'https://esm.sh/@univerjs/presets@0.20.1';
+import { UniverSheetsCorePreset } from 'https://esm.sh/@univerjs/preset-sheets-core@0.20.1';
+import zhCN from 'https://esm.sh/@univerjs/preset-sheets-core@0.20.1/locales/zh-CN';
 
-<!DOCTYPE html>
-<html xmlns="http://www.w3.org/1999/xhtml">
-<head runat="server">
-    <meta charset="utf-8" />
-    <title>Univer Sheets Web Forms Demo</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
+const saveButton = document.getElementById('btnSave');
+const saveStatus = document.getElementById('saveStatus');
 
-    <link rel="stylesheet" href="https://esm.sh/@univerjs/preset-sheets-core@0.20.1/lib/index.css" />
+const { univerAPI } = createUniver({
+    locale: LocaleType.ZH_CN,
+    locales: {
+        [LocaleType.ZH_CN]: mergeLocales(zhCN),
+    },
+    presets: [
+        UniverSheetsCorePreset({
+            container: 'app',
+        }),
+    ],
+});
 
-    <style>
-        html, body, form {
-            margin: 0;
-            padding: 0;
-            width: 100%;
-            height: 100%;
-            font-family: Arial, sans-serif;
+console.log('univerAPI =', univerAPI);
+
+if (!univerAPI || typeof univerAPI.createWorkbook !== 'function') {
+    saveStatus.textContent = '初始化失敗：univerAPI.createWorkbook 不可用';
+    throw new Error('univerAPI.createWorkbook is not a function');
+}
+
+const workbook = univerAPI.createWorkbook(window.initialWorkbook);
+
+async function saveWorkbook() {
+    try {
+        saveButton.disabled = true;
+        saveStatus.textContent = '儲存中...';
+
+        const activeWorkbook = univerAPI.getActiveWorkbook();
+        if (!activeWorkbook) {
+            throw new Error('找不到 active workbook');
         }
 
-        .page {
-            height: 100vh;
-            display: flex;
-            flex-direction: column;
+        if (typeof activeWorkbook.endEditingAsync === 'function') {
+            await activeWorkbook.endEditingAsync(true);
         }
 
-        .toolbar {
-            padding: 12px 16px;
-            border-bottom: 1px solid #ddd;
-            background: #f7f7f7;
+        if (typeof activeWorkbook.save !== 'function') {
+            throw new Error('目前 workbook 不支援 save()');
         }
 
-        .sheet-wrap {
-            flex: 1;
-            min-height: 0;
+        const snapshot = activeWorkbook.save();
+
+        const response = await fetch('Default.aspx/SaveWorkbook', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json; charset=utf-8'
+            },
+            body: JSON.stringify({
+                workbookJson: JSON.stringify(snapshot)
+            })
+        });
+
+        const result = await response.json();
+
+        if (!result.d || !result.d.success) {
+            throw new Error((result.d && result.d.message) || '儲存失敗');
         }
 
-        #app {
-            width: 100%;
-            height: 100%;
-        }
+        saveStatus.textContent = result.d.message;
+    } catch (error) {
+        saveStatus.textContent = '儲存失敗：' + error.message;
+    } finally {
+        saveButton.disabled = false;
+    }
+}
 
-        #saveStatus {
-            margin-left: 12px;
-            color: #444;
-        }
-    </style>
-</head>
-<body>
-    <form id="form1" runat="server">
-        <div class="page">
-            <div class="toolbar">
-                <button type="button" id="btnSave">儲存</button>
-                <span id="saveStatus">尚未儲存</span>
-            </div>
-            <div class="sheet-wrap">
-                <div id="app"></div>
-            </div>
-        </div>
-
-        <script>
-            window.initialWorkbook = <asp:Literal ID="ltWorkbookJson" runat="server"></asp:Literal>;
-        </script>
-
-        <script type="module" src="Scripts/univer-page.js"></script>
-    </form>
-</body>
-</html>
+saveButton.addEventListener('click', saveWorkbook);

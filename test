@@ -1,73 +1,84 @@
-import { createUniver, LocaleType, mergeLocales } from 'https://esm.sh/@univerjs/presets@0.20.1';
-import { FUniver } from 'https://esm.sh/@univerjs/core@0.20.1/facade';
-import { UniverSheetsCorePreset } from 'https://esm.sh/@univerjs/preset-sheets-core@0.20.1';
-import zhCN from 'https://esm.sh/@univerjs/preset-sheets-core@0.20.1/locales/zh-CN';
-import 'https://esm.sh/@univerjs/sheets@0.20.1/facade';
-import 'https://esm.sh/@univerjs/sheets-ui@0.20.1/facade';
+<%@ Page Language="C#" AutoEventWireup="true" CodeBehind="Default.aspx.cs" Inherits="WebFormsUniverDemo.Default" %>
 
-const saveButton = document.getElementById('btnSave');
-const saveStatus = document.getElementById('saveStatus');
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head runat="server">
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Univer Sheets Web Forms Demo</title>
 
-const { univer } = createUniver({
-    locale: LocaleType.ZH_CN,
-    locales: {
-        [LocaleType.ZH_CN]: mergeLocales(zhCN),
-    },
-    presets: [
-        UniverSheetsCorePreset({
-            container: 'app',
-        }),
-    ],
-});
+    <link rel="stylesheet" href="https://esm.sh/@univerjs/preset-sheets-core@0.20.1/lib/index.css" />
 
-const univerAPI = FUniver.newAPI(univer);
-
-console.log('univer =', univer);
-console.log('univerAPI =', univerAPI);
-console.log('createWorkbook type =', typeof univerAPI.createWorkbook);
-
-if (typeof univerAPI.createWorkbook !== 'function') {
-    saveStatus.textContent = '初始化失敗：createWorkbook 不可用';
-    throw new Error('univerAPI.createWorkbook is not a function');
-}
-
-univerAPI.createWorkbook(window.initialWorkbook);
-
-async function saveWorkbook() {
-    try {
-        saveButton.disabled = true;
-        saveStatus.textContent = '儲存中...';
-
-        const workbook = univerAPI.getActiveWorkbook();
-        if (!workbook) {
-            throw new Error('找不到 active workbook');
+    <style>
+        html, body, form {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            font-family: Arial, sans-serif;
         }
 
-        await workbook.endEditingAsync(true);
-        const snapshot = workbook.save();
-
-        const response = await fetch('Default.aspx/SaveWorkbook', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json; charset=utf-8'
-            },
-            body: JSON.stringify({
-                workbookJson: JSON.stringify(snapshot)
-            })
-        });
-
-        const result = await response.json();
-
-        if (!result.d || !result.d.success) {
-            throw new Error((result.d && result.d.message) || '儲存失敗');
+        .page {
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
         }
 
-        saveStatus.textContent = result.d.message;
-    } catch (error) {
-        saveStatus.textContent = '儲存失敗：' + error.message;
-    } finally {
-        saveButton.disabled = false;
-    }
-}
+        .toolbar {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 16px;
+            border-bottom: 1px solid #ddd;
+            background: #f7f7f7;
+        }
 
-saveButton.addEventListener('click', saveWorkbook);
+        .toolbar button {
+            padding: 8px 14px;
+            border: 1px solid #bbb;
+            background: #fff;
+            cursor: pointer;
+        }
+
+        .toolbar button:hover {
+            background: #f0f0f0;
+        }
+
+        .status {
+            font-size: 14px;
+            color: #444;
+        }
+
+        .sheet-wrap {
+            flex: 1;
+            min-height: 0;
+        }
+
+        #app {
+            width: 100%;
+            height: 100%;
+        }
+    </style>
+</head>
+<body>
+    <form id="form1" runat="server">
+        <div class="page">
+            <div class="toolbar">
+                <button type="button" id="btnSave">儲存</button>
+                <span id="saveStatus" class="status">尚未儲存</span>
+            </div>
+
+            <div class="sheet-wrap">
+                <div id="app"></div>
+            </div>
+        </div>
+
+        <asp:HiddenField ID="hfWorkbookJson" runat="server" />
+
+        <script>
+            window.saveUrl = 'Default.aspx/SaveWorkbook';
+        </script>
+        <script type="module" src="Scripts/univer-page.js"></script>
+    </form>
+</body>
+</html>

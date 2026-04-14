@@ -1,0 +1,7 @@
+namespace YourMvcProject.Models
+{
+    public class SaveWorkbookRequest
+    {
+        public string WorkbookJson { get; set; }
+    }
+}

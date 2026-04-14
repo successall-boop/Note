@@ -1,137 +1,119 @@
-<%@ Page Language="C#" AutoEventWireup="true" CodeBehind="Default.aspx.cs" Inherits="WebFormsUniverDemo.Default" %>
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Text;
+using System.Web;
+using System.Web.Script.Serialization;
+using System.Web.Services;
 
-<!DOCTYPE html>
-<html xmlns="http://www.w3.org/1999/xhtml">
-<head runat="server">
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Univer Sheets Web Forms Demo</title>
-
-    <link rel="stylesheet" href="https://unpkg.com/@univerjs/design@0.20.1/lib/index.css" />
-    <link rel="stylesheet" href="https://unpkg.com/@univerjs/ui@0.20.1/lib/index.css" />
-    <link rel="stylesheet" href="https://unpkg.com/@univerjs/docs-ui@0.20.1/lib/index.css" />
-    <link rel="stylesheet" href="https://unpkg.com/@univerjs/sheets-ui@0.20.1/lib/index.css" />
-    <link rel="stylesheet" href="https://unpkg.com/@univerjs/sheets-formula-ui@0.20.1/lib/index.css" />
-    <link rel="stylesheet" href="https://unpkg.com/@univerjs/sheets-numfmt-ui@0.20.1/lib/index.css" />
-
-    <style>
-        html, body, form, #app {
-            margin: 0;
-            width: 100%;
-            height: 100%;
+namespace WebFormsUniverDemo
+{
+    public partial class Default : System.Web.UI.Page
+    {
+        protected void Page_Load(object sender, EventArgs e)
+        {
+            if (!IsPostBack)
+            {
+                hfWorkbookJson.Value = LoadWorkbookJson();
+            }
         }
 
-        .page {
-            height: 100vh;
-            display: flex;
-            flex-direction: column;
-        }
+        private string LoadWorkbookJson()
+        {
+            string path = Server.MapPath("~/App_Data/workbook.json");
 
-        .toolbar {
-            padding: 12px 16px;
-            border-bottom: 1px solid #ddd;
-            background: #f7f7f7;
-        }
+            if (File.Exists(path))
+            {
+                return File.ReadAllText(path, Encoding.UTF8);
+            }
 
-        .sheet-wrap {
-            flex: 1;
-            min-height: 0;
-        }
-
-        #saveStatus {
-            margin-left: 12px;
-        }
-    </style>
-</head>
-<body>
-    <form id="form1" runat="server">
-        <div class="page">
-            <div class="toolbar">
-                <button type="button" id="btnSave">儲存</button>
-                <span id="saveStatus">尚未儲存</span>
-            </div>
-            <div class="sheet-wrap">
-                <div id="app"></div>
-            </div>
-        </div>
-
-        <asp:HiddenField ID="hfWorkbookJson" runat="server" />
-
-        <script src="https://unpkg.com/@univerjs/presets@0.20.1/lib/umd/index.js"></script>
-        <script src="https://unpkg.com/@univerjs/preset-sheets-core@0.20.1/lib/umd/index.js"></script>
-        <script src="https://unpkg.com/@univerjs/preset-sheets-core@0.20.1/lib/umd/locales/zh-CN.js"></script>
-        <script src="https://unpkg.com/@univerjs/core@0.20.1/lib/umd/facade.js"></script>
-        <script src="https://unpkg.com/@univerjs/sheets@0.20.1/lib/umd/facade.js"></script>
-        <script src="https://unpkg.com/@univerjs/sheets-ui@0.20.1/lib/umd/facade.js"></script>
-
-        <script>
-            (function () {
-                var hiddenField = document.getElementById('<%= hfWorkbookJson.ClientID %>');
-                var saveButton = document.getElementById('btnSave');
-                var saveStatus = document.getElementById('saveStatus');
-                var initialWorkbook = JSON.parse(hiddenField.value);
-
-                var createUniver = UniverPresets.createUniver;
-                var LocaleType = UniverCore.LocaleType;
-                var mergeLocales = UniverCore.mergeLocales;
-                var FUniver = UniverCoreFacade.FUniver;
-                var UniverSheetsCorePreset = UniverPresetSheetsCore.UniverSheetsCorePreset;
-                var zhCN = UniverPresetSheetsCoreZhCN;
-
-                var result = createUniver({
-                    locale: LocaleType.ZH_CN,
-                    locales: (function () {
-                        var locales = {};
-                        locales[LocaleType.ZH_CN] = mergeLocales(zhCN);
-                        return locales;
-                    })(),
-                    presets: [
-                        UniverSheetsCorePreset({
-                            container: 'app'
-                        })
-                    ]
-                });
-
-                var univer = result.univer;
-                var univerAPI = FUniver.newAPI(univer);
-
-                univerAPI.createWorkbook(initialWorkbook);
-
-                saveButton.addEventListener('click', async function () {
-                    try {
-                        saveButton.disabled = true;
-                        saveStatus.textContent = '儲存中...';
-
-                        var workbook = univerAPI.getActiveWorkbook();
-                        await workbook.endEditingAsync(true);
-
-                        var snapshot = workbook.save();
-
-                        var response = await fetch('Default.aspx/SaveWorkbook', {
-                            method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/json; charset=utf-8'
+            var workbook = new
+            {
+                id = "workbook-001",
+                name = "銷售報表",
+                appVersion = "1.0.0",
+                locale = "zhCN",
+                styles = new { },
+                sheetOrder = new[] { "sheet-1" },
+                sheets = new Dictionary<string, object>
+                {
+                    {
+                        "sheet-1",
+                        new
+                        {
+                            id = "sheet-1",
+                            name = "Sheet1",
+                            rowCount = 20,
+                            columnCount = 10,
+                            defaultRowHeight = 24,
+                            defaultColumnWidth = 100,
+                            cellData = new Dictionary<string, object>
+                            {
+                                {
+                                    "0",
+                                    new Dictionary<string, object>
+                                    {
+                                        { "0", new { v = "商品" } },
+                                        { "1", new { v = "數量" } },
+                                        { "2", new { v = "單價" } },
+                                        { "3", new { v = "小計" } }
+                                    }
+                                },
+                                {
+                                    "1",
+                                    new Dictionary<string, object>
+                                    {
+                                        { "0", new { v = "蘋果" } },
+                                        { "1", new { v = 3 } },
+                                        { "2", new { v = 25 } },
+                                        { "3", new { v = 75 } }
+                                    }
+                                }
                             },
-                            body: JSON.stringify({
-                                workbookJson: JSON.stringify(snapshot)
-                            })
-                        });
-
-                        var result = await response.json();
-
-                        if (!result.d || !result.d.success) {
-                            throw new Error((result.d && result.d.message) || '儲存失敗');
+                            rowData = new { },
+                            columnData = new { },
+                            mergeData = new object[] { },
+                            showGridlines = 1,
+                            rightToLeft = 0,
+                            rowHeader = new { width = 46 },
+                            columnHeader = new { height = 20 }
                         }
-
-                        saveStatus.textContent = result.d.message;
-                    } catch (err) {
-                        saveStatus.textContent = '儲存失敗：' + err.message;
-                    } finally {
-                        saveButton.disabled = false;
                     }
-                });
-            })();
-        </script>
-    </form>
-</body>
-</html>
+                }
+            };
+
+            return new JavaScriptSerializer().Serialize(workbook);
+        }
+
+        [WebMethod]
+        public static SaveResult SaveWorkbook(string workbookJson)
+        {
+            try
+            {
+                string path = HttpContext.Current.Server.MapPath("~/App_Data/workbook.json");
+                Directory.CreateDirectory(Path.GetDirectoryName(path));
+                File.WriteAllText(path, workbookJson, Encoding.UTF8);
+
+                return new SaveResult
+                {
+                    success = true,
+                    message = "儲存成功：" + DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss")
+                };
+            }
+            catch (Exception ex)
+            {
+                return new SaveResult
+                {
+                    success = false,
+                    message = ex.Message
+                };
+            }
+        }
+
+        public class SaveResult
+        {
+            public bool success { get; set; }
+            public string message { get; set; }
+        }
+    }
+}

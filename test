@@ -1,22 +1,137 @@
-Uncaught RangeError: Maximum call stack size exceeded
-    at u.error (Subscriber.ts:83:33)
-    at u.<anonymous> (lift.ts:26:16)
-    at Observable.ts:217:22
-    at u (errorContext.ts:29:5)
-    at o.subscribe (Observable.ts:211:5)
-    at t (bufferWhen.ts:69:36)
-    at u._next (OperatorSubscriber.ts:70:13)
-    at u.next (Subscriber.ts:71:12)
-    at filter.ts:72:109
-    at u._next (OperatorSubscriber.ts:70:13)
-Uncaught TypeError: Cannot read properties of null (reading 'useContext')
-    at u.useContext (react.production.js:489:33)
-    at D (reactHooks.tsx:44:28)
-    at U (reactHooks.tsx:115:20)
-    at Ca (index.js:1:13768)
-    at is (index.js:43:5793)
-    at hi (react-dom-client.production.js:4576:21)
-    at dc (react-dom-client.production.js:6731:15)
-    at cy (react-dom-client.production.js:7769:14)
-    at xy (react-dom-client.production.js:12541:14)
-    at Ad (react-dom-client.production.js:12418:37)
+<%@ Page Language="C#" AutoEventWireup="true" CodeBehind="Default.aspx.cs" Inherits="WebFormsUniverDemo.Default" %>
+
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head runat="server">
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Univer Sheets Web Forms Demo</title>
+
+    <link rel="stylesheet" href="https://unpkg.com/@univerjs/design@0.20.1/lib/index.css" />
+    <link rel="stylesheet" href="https://unpkg.com/@univerjs/ui@0.20.1/lib/index.css" />
+    <link rel="stylesheet" href="https://unpkg.com/@univerjs/docs-ui@0.20.1/lib/index.css" />
+    <link rel="stylesheet" href="https://unpkg.com/@univerjs/sheets-ui@0.20.1/lib/index.css" />
+    <link rel="stylesheet" href="https://unpkg.com/@univerjs/sheets-formula-ui@0.20.1/lib/index.css" />
+    <link rel="stylesheet" href="https://unpkg.com/@univerjs/sheets-numfmt-ui@0.20.1/lib/index.css" />
+
+    <style>
+        html, body, form, #app {
+            margin: 0;
+            width: 100%;
+            height: 100%;
+        }
+
+        .page {
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .toolbar {
+            padding: 12px 16px;
+            border-bottom: 1px solid #ddd;
+            background: #f7f7f7;
+        }
+
+        .sheet-wrap {
+            flex: 1;
+            min-height: 0;
+        }
+
+        #saveStatus {
+            margin-left: 12px;
+        }
+    </style>
+</head>
+<body>
+    <form id="form1" runat="server">
+        <div class="page">
+            <div class="toolbar">
+                <button type="button" id="btnSave">儲存</button>
+                <span id="saveStatus">尚未儲存</span>
+            </div>
+            <div class="sheet-wrap">
+                <div id="app"></div>
+            </div>
+        </div>
+
+        <asp:HiddenField ID="hfWorkbookJson" runat="server" />
+
+        <script src="https://unpkg.com/@univerjs/presets@0.20.1/lib/umd/index.js"></script>
+        <script src="https://unpkg.com/@univerjs/preset-sheets-core@0.20.1/lib/umd/index.js"></script>
+        <script src="https://unpkg.com/@univerjs/preset-sheets-core@0.20.1/lib/umd/locales/zh-CN.js"></script>
+        <script src="https://unpkg.com/@univerjs/core@0.20.1/lib/umd/facade.js"></script>
+        <script src="https://unpkg.com/@univerjs/sheets@0.20.1/lib/umd/facade.js"></script>
+        <script src="https://unpkg.com/@univerjs/sheets-ui@0.20.1/lib/umd/facade.js"></script>
+
+        <script>
+            (function () {
+                var hiddenField = document.getElementById('<%= hfWorkbookJson.ClientID %>');
+                var saveButton = document.getElementById('btnSave');
+                var saveStatus = document.getElementById('saveStatus');
+                var initialWorkbook = JSON.parse(hiddenField.value);
+
+                var createUniver = UniverPresets.createUniver;
+                var LocaleType = UniverCore.LocaleType;
+                var mergeLocales = UniverCore.mergeLocales;
+                var FUniver = UniverCoreFacade.FUniver;
+                var UniverSheetsCorePreset = UniverPresetSheetsCore.UniverSheetsCorePreset;
+                var zhCN = UniverPresetSheetsCoreZhCN;
+
+                var result = createUniver({
+                    locale: LocaleType.ZH_CN,
+                    locales: (function () {
+                        var locales = {};
+                        locales[LocaleType.ZH_CN] = mergeLocales(zhCN);
+                        return locales;
+                    })(),
+                    presets: [
+                        UniverSheetsCorePreset({
+                            container: 'app'
+                        })
+                    ]
+                });
+
+                var univer = result.univer;
+                var univerAPI = FUniver.newAPI(univer);
+
+                univerAPI.createWorkbook(initialWorkbook);
+
+                saveButton.addEventListener('click', async function () {
+                    try {
+                        saveButton.disabled = true;
+                        saveStatus.textContent = '儲存中...';
+
+                        var workbook = univerAPI.getActiveWorkbook();
+                        await workbook.endEditingAsync(true);
+
+                        var snapshot = workbook.save();
+
+                        var response = await fetch('Default.aspx/SaveWorkbook', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json; charset=utf-8'
+                            },
+                            body: JSON.stringify({
+                                workbookJson: JSON.stringify(snapshot)
+                            })
+                        });
+
+                        var result = await response.json();
+
+                        if (!result.d || !result.d.success) {
+                            throw new Error((result.d && result.d.message) || '儲存失敗');
+                        }
+
+                        saveStatus.textContent = result.d.message;
+                    } catch (err) {
+                        saveStatus.textContent = '儲存失敗：' + err.message;
+                    } finally {
+                        saveButton.disabled = false;
+                    }
+                });
+            })();
+        </script>
+    </form>
+</body>
+</html>

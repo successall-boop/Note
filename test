@@ -1,93 +1,22 @@
-import { createUniver, LocaleType, mergeLocales } from 'https://esm.sh/@univerjs/presets@0.20.1';
-import { FUniver } from 'https://esm.sh/@univerjs/core@0.20.1/facade';
-import { UniverSheetsCorePreset } from 'https://esm.sh/@univerjs/preset-sheets-core@0.20.1';
-import zhCN from 'https://esm.sh/@univerjs/preset-sheets-core@0.20.1/locales/zh-CN';
-import 'https://esm.sh/@univerjs/sheets@0.20.1/facade';
-import 'https://esm.sh/@univerjs/sheets-ui@0.20.1/facade';
-
-const hiddenField = document.getElementById('hfWorkbookJson');
-const saveButton = document.getElementById('btnSave');
-const saveStatus = document.getElementById('saveStatus');
-
-if (!hiddenField) {
-    throw new Error('找不到 hfWorkbookJson');
-}
-
-const initialWorkbookJson = hiddenField.value;
-if (!initialWorkbookJson) {
-    throw new Error('hfWorkbookJson 沒有資料');
-}
-
-const initialWorkbook = JSON.parse(initialWorkbookJson);
-
-const { univer } = createUniver({
-    locale: LocaleType.ZH_CN,
-    locales: {
-        [LocaleType.ZH_CN]: mergeLocales(zhCN),
-    },
-    presets: [
-        UniverSheetsCorePreset({
-            container: 'app',
-        }),
-    ],
-});
-
-const univerAPI = FUniver.newAPI(univer);
-
-console.log('univer =', univer);
-console.log('univerAPI =', univerAPI);
-console.log('createWorkbook type =', typeof univerAPI.createWorkbook);
-
-if (!univerAPI || typeof univerAPI.createWorkbook !== 'function') {
-    saveStatus.textContent = '初始化失敗：createWorkbook 不可用';
-    throw new Error('univerAPI.createWorkbook is not a function');
-}
-
-univerAPI.createWorkbook(initialWorkbook);
-
-async function saveWorkbook() {
-    try {
-        saveButton.disabled = true;
-        saveStatus.textContent = '儲存中...';
-
-        const workbook = univerAPI.getActiveWorkbook();
-        if (!workbook) {
-            throw new Error('找不到 active workbook');
-        }
-
-        if (typeof workbook.endEditingAsync === 'function') {
-            await workbook.endEditingAsync(true);
-        }
-
-        if (typeof workbook.save !== 'function') {
-            throw new Error('workbook.save() 不可用');
-        }
-
-        const snapshot = workbook.save();
-
-        const response = await fetch(window.saveUrl, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json; charset=utf-8'
-            },
-            body: JSON.stringify({
-                workbookJson: JSON.stringify(snapshot)
-            })
-        });
-
-        const result = await response.json();
-
-        if (!result.d || !result.d.success) {
-            throw new Error((result.d && result.d.message) || '儲存失敗');
-        }
-
-        saveStatus.textContent = result.d.message;
-    } catch (error) {
-        saveStatus.textContent = '儲存失敗：' + error.message;
-        console.error(error);
-    } finally {
-        saveButton.disabled = false;
-    }
-}
-
-saveButton.addEventListener('click', saveWorkbook);
+Uncaught RangeError: Maximum call stack size exceeded
+    at u.error (Subscriber.ts:83:33)
+    at u.<anonymous> (lift.ts:26:16)
+    at Observable.ts:217:22
+    at u (errorContext.ts:29:5)
+    at o.subscribe (Observable.ts:211:5)
+    at t (bufferWhen.ts:69:36)
+    at u._next (OperatorSubscriber.ts:70:13)
+    at u.next (Subscriber.ts:71:12)
+    at filter.ts:72:109
+    at u._next (OperatorSubscriber.ts:70:13)
+Uncaught TypeError: Cannot read properties of null (reading 'useContext')
+    at u.useContext (react.production.js:489:33)
+    at D (reactHooks.tsx:44:28)
+    at U (reactHooks.tsx:115:20)
+    at Ca (index.js:1:13768)
+    at is (index.js:43:5793)
+    at hi (react-dom-client.production.js:4576:21)
+    at dc (react-dom-client.production.js:6731:15)
+    at cy (react-dom-client.production.js:7769:14)
+    at xy (react-dom-client.production.js:12541:14)
+    at Ad (react-dom-client.production.js:12418:37)

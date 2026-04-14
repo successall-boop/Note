@@ -1,0 +1,137 @@
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Text;
+using System.Web.Mvc;
+using System.Web.Script.Serialization;
+using YourMvcProject.Models;
+
+namespace YourMvcProject.Controllers
+{
+    public class UniverController : Controller
+    {
+        private string WorkbookFilePath
+        {
+            get { return Server.MapPath("~/App_Data/workbook.json"); }
+        }
+
+        public ActionResult Index()
+        {
+            ViewBag.WorkbookJson = LoadWorkbookJson();
+            return View();
+        }
+
+        [HttpPost]
+        public JsonResult Save(SaveWorkbookRequest request)
+        {
+            try
+            {
+                if (request == null || string.IsNullOrWhiteSpace(request.WorkbookJson))
+                {
+                    return Json(new SaveWorkbookResult
+                    {
+                        Success = false,
+                        Message = "沒有收到 workbook 資料"
+                    });
+                }
+
+                var dir = Path.GetDirectoryName(WorkbookFilePath);
+                if (!Directory.Exists(dir))
+                {
+                    Directory.CreateDirectory(dir);
+                }
+
+                System.IO.File.WriteAllText(WorkbookFilePath, request.WorkbookJson, Encoding.UTF8);
+
+                return Json(new SaveWorkbookResult
+                {
+                    Success = true,
+                    Message = "儲存成功：" + DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss")
+                });
+            }
+            catch (Exception ex)
+            {
+                return Json(new SaveWorkbookResult
+                {
+                    Success = false,
+                    Message = ex.Message
+                });
+            }
+        }
+
+        private string LoadWorkbookJson()
+        {
+            if (System.IO.File.Exists(WorkbookFilePath))
+            {
+                return System.IO.File.ReadAllText(WorkbookFilePath, Encoding.UTF8);
+            }
+
+            var workbook = new
+            {
+                id = "workbook-001",
+                name = "銷售報表",
+                appVersion = "1.0.0",
+                locale = "zhCN",
+                styles = new { },
+                sheetOrder = new[] { "sheet-1" },
+                sheets = new Dictionary<string, object>
+                {
+                    {
+                        "sheet-1",
+                        new
+                        {
+                            id = "sheet-1",
+                            name = "Sheet1",
+                            rowCount = 20,
+                            columnCount = 10,
+                            defaultRowHeight = 24,
+                            defaultColumnWidth = 100,
+                            cellData = new Dictionary<string, object>
+                            {
+                                {
+                                    "0",
+                                    new Dictionary<string, object>
+                                    {
+                                        { "0", new { v = "商品" } },
+                                        { "1", new { v = "數量" } },
+                                        { "2", new { v = "單價" } },
+                                        { "3", new { v = "小計" } }
+                                    }
+                                },
+                                {
+                                    "1",
+                                    new Dictionary<string, object>
+                                    {
+                                        { "0", new { v = "蘋果" } },
+                                        { "1", new { v = 3 } },
+                                        { "2", new { v = 25 } },
+                                        { "3", new { v = 75 } }
+                                    }
+                                },
+                                {
+                                    "2",
+                                    new Dictionary<string, object>
+                                    {
+                                        { "0", new { v = "香蕉" } },
+                                        { "1", new { v = 5 } },
+                                        { "2", new { v = 12 } },
+                                        { "3", new { v = 60 } }
+                                    }
+                                }
+                            },
+                            rowData = new { },
+                            columnData = new { },
+                            mergeData = new object[] { },
+                            showGridlines = 1,
+                            rightToLeft = 0,
+                            rowHeader = new { width = 46 },
+                            columnHeader = new { height = 20 }
+                        }
+                    }
+                }
+            };
+
+            return new JavaScriptSerializer().Serialize(workbook);
+        }
+    }
+}
